@@ -1,0 +1,272 @@
+[
+  {
+    "name": "safe_newsletter_kaggle",
+    "notes": "Sanitized real-world newsletter pattern with strong branding and footer trust markers.",
+    "expected_prediction": "Safe",
+    "expected_category": "legitimate_marketing",
+    "subject": "Host Your Own Hackathon on Kaggle Now!",
+    "sender": "no-reply@kaggle.com",
+    "body": "Hi Daniel Kapolobwe, Community Hackathons are now available to all Kaggle users at no cost. Learn more at https://www.kaggle.com/. You can unsubscribe or update your preferences on your profile page.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from mail.kaggle.com by mx.google.com",
+      "Reply-To": "no-reply@kaggle.com",
+      "Return-Path": "<bounce@kaggle.com>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "safe_newsletter_github_digest",
+    "notes": "Branded product digest with preferences and unsubscribe language.",
+    "expected_prediction": "Safe",
+    "expected_category": "legitimate_marketing",
+    "subject": "Your weekly GitHub activity summary",
+    "sender": "notifications@github.com",
+    "body": "Here is your weekly summary of pull requests, issues, and repository activity. Review your notifications at https://github.com/notifications and update your email preferences anytime.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from mail.github.com by mx.google.com",
+      "Reply-To": "notifications@github.com",
+      "Return-Path": "<notifications@github.com>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "safe_marketing_linkedin_digest",
+    "notes": "Marketing/community digest from a professional network.",
+    "expected_prediction": "Safe",
+    "expected_category": "legitimate_marketing",
+    "subject": "Top posts and jobs you may have missed",
+    "sender": "messages-noreply@linkedin.com",
+    "body": "Catch up on new posts, suggested jobs, and people in your network. View in browser or update your preferences at https://www.linkedin.com/.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from mail.linkedin.com by mx.google.com",
+      "Reply-To": "messages-noreply@linkedin.com",
+      "Return-Path": "<messages-noreply@linkedin.com>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "transaction_receipt_store",
+    "notes": "Normal ecommerce receipt with aligned domain and PDF receipt.",
+    "expected_prediction": "Safe",
+    "expected_category": "transactional",
+    "subject": "Your order receipt from Example Store",
+    "sender": "receipts@example-store.com",
+    "body": "Thank you for your order. View your receipt at https://example-store.com/orders/12345 or manage your preferences in your account.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass",
+      "Received": "from mail.example-store.com by mx.google.com",
+      "Reply-To": "receipts@example-store.com",
+      "Return-Path": "<receipts@example-store.com>"
+    },
+    "attachments": [
+      {
+        "filename": "receipt.pdf",
+        "content_type": "application/pdf",
+        "size": 184320
+      }
+    ]
+  },
+  {
+    "name": "transaction_invoice_saas",
+    "notes": "Software billing invoice with a cautious but safe pattern.",
+    "expected_prediction": "Safe",
+    "expected_category": "transactional",
+    "subject": "Invoice INV-1048 for your workspace subscription",
+    "sender": "billing@workspace-tools.com",
+    "body": "Your monthly invoice is ready. Download the PDF invoice from https://workspace-tools.com/billing/invoices and contact support if you have questions.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from smtp.workspace-tools.com by mx.google.com",
+      "Reply-To": "billing@workspace-tools.com",
+      "Return-Path": "<billing@workspace-tools.com>"
+    },
+    "attachments": [
+      {
+        "filename": "INV-1048.pdf",
+        "content_type": "application/pdf",
+        "size": 228901
+      }
+    ]
+  },
+  {
+    "name": "security_notice_github",
+    "notes": "Legitimate security sign-in notification.",
+    "expected_prediction": "Safe",
+    "expected_category": "security_notice",
+    "subject": "Security alert: new sign-in to your account",
+    "sender": "noreply@github.com",
+    "body": "We noticed a new sign-in to your GitHub account. If this was not you, review your recent security activity at https://github.com/settings/security-log.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from mail.github.com by mx.google.com",
+      "Reply-To": "noreply@github.com",
+      "Return-Path": "<noreply@github.com>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "security_notice_microsoft",
+    "notes": "Legitimate account security email that contains security language but aligned domains.",
+    "expected_prediction": "Safe",
+    "expected_category": "security_notice",
+    "subject": "Microsoft account security code",
+    "sender": "account-security-noreply@accountprotection.microsoft.com",
+    "body": "Use this security code to complete your sign-in. If you did not request this, review your account security activity at https://account.microsoft.com/security.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from accountprotection.microsoft.com by mx.google.com",
+      "Reply-To": "account-security-noreply@accountprotection.microsoft.com",
+      "Return-Path": "<account-security-noreply@accountprotection.microsoft.com>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "borderline_password_reset",
+    "notes": "Suspicious but not extreme password reset email with mixed signals.",
+    "expected_prediction": "Safe",
+    "expected_category": "suspicious",
+    "subject": "Reset your project dashboard password",
+    "sender": "alerts@project-desk-mail.com",
+    "body": "We received a password reset request. If this was you, continue at https://project-desk-mail.com/reset. If this was not you, you can ignore this message.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=fail",
+      "Received": "from smtp.project-desk-mail.com by mx.google.com",
+      "Reply-To": "alerts@project-desk-mail.com",
+      "Return-Path": "<alerts@project-desk-mail.com>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "borderline_security_notice_mismatch",
+    "notes": "Security-themed message with sender and link mismatch that should stay suspicious.",
+    "expected_prediction": "Safe",
+    "expected_category": "suspicious",
+    "subject": "Security alert: unusual login noticed",
+    "sender": "alerts@github-notice.com",
+    "body": "We noticed a new login to your account. If this was not you, review activity now at https://github-notice.com/security.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=fail",
+      "Received": "from smtp.github-notice.com by mx.google.com",
+      "Reply-To": "alerts@github-notice.com",
+      "Return-Path": "<alerts@github-notice.com>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "phishing_shortener",
+    "notes": "Classic urgent credential lure using a shortener.",
+    "expected_prediction": "Phishing",
+    "expected_category": "phishing",
+    "subject": "Urgent: Verify your payroll account",
+    "sender": "security-team@safe-payments-alert.com",
+    "body": "Your account has been suspended. Click here immediately to confirm your identity and reset your password: http://bit.ly/payroll-reset",
+    "headers": {
+      "Authentication-Results": "spf=fail; dkim=fail; dmarc=fail",
+      "Received": "from unknown-relay.example",
+      "Reply-To": "support@credential-check.xyz",
+      "Return-Path": "<mailer@credential-check.xyz>"
+    },
+    "attachments": [
+      {
+        "filename": "Payroll_Update.scr",
+        "content_type": "application/octet-stream",
+        "size": 34816
+      }
+    ]
+  },
+  {
+    "name": "phishing_invoice_mismatch",
+    "notes": "Invoice lure with mismatched headers, IP-based URL, and dangerous attachment name.",
+    "expected_prediction": "Phishing",
+    "expected_category": "phishing",
+    "subject": "Invoice attached for your review",
+    "sender": "accounts@trustedvendor-mail.com",
+    "body": "Please review the attached invoice and confirm payment today. Sign in now at http://198.51.100.23/login to avoid delays.",
+    "headers": {
+      "Authentication-Results": "spf=fail; dkim=fail",
+      "Received": "from localhost",
+      "Reply-To": "billing@payment-check.net",
+      "Return-Path": "<billing@payment-check.net>"
+    },
+    "attachments": [
+      {
+        "filename": "invoice.pdf.exe",
+        "content_type": "application/octet-stream",
+        "size": 55000
+      }
+    ]
+  },
+  {
+    "name": "phishing_bank_clone",
+    "notes": "Brand impersonation with lookalike domain and account-verification language.",
+    "expected_prediction": "Phishing",
+    "expected_category": "phishing",
+    "subject": "Bank alert: account verification required",
+    "sender": "alerts@bankofamerica-login.net",
+    "body": "Suspicious activity was detected on your account. Verify now at https://bankofamerica-login.net/secure to restore access.",
+    "headers": {
+      "Authentication-Results": "spf=fail; dkim=fail; dmarc=fail",
+      "Received": "from unknown-relay.example",
+      "Reply-To": "support@bankofamerica-login.net",
+      "Return-Path": "<support@bankofamerica-login.net>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "phishing_redirect_link",
+    "notes": "URL includes redirect parameter and mismatched return path.",
+    "expected_prediction": "Phishing",
+    "expected_category": "phishing",
+    "subject": "Action required: update billing information",
+    "sender": "billing@cloud-secure-notice.com",
+    "body": "Update billing now to avoid service interruption: https://cloud-secure-notice.com/go?redirect=https://pay-update.example/login",
+    "headers": {
+      "Authentication-Results": "spf=fail; dkim=fail",
+      "Received": "from unknown-relay.example",
+      "Reply-To": "payments@verify-fast.net",
+      "Return-Path": "<payments@verify-fast.net>"
+    },
+    "attachments": []
+  },
+  {
+    "name": "safe_transaction_support_reply",
+    "notes": "Customer support follow-up with a normal PDF attachment and aligned headers.",
+    "expected_prediction": "Safe",
+    "expected_category": "transactional",
+    "subject": "Support follow-up for ticket #8421",
+    "sender": "support@hosting-example.com",
+    "body": "We have resolved your ticket and attached the service report. You can review the ticket history at https://hosting-example.com/support/tickets/8421.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass",
+      "Received": "from smtp.hosting-example.com by mx.google.com",
+      "Reply-To": "support@hosting-example.com",
+      "Return-Path": "<support@hosting-example.com>"
+    },
+    "attachments": [
+      {
+        "filename": "service-report.pdf",
+        "content_type": "application/pdf",
+        "size": 294120
+      }
+    ]
+  },
+  {
+    "name": "safe_event_update",
+    "notes": "Community event update with marketing cues but not much risk language.",
+    "expected_prediction": "Safe",
+    "expected_category": "legitimate_marketing",
+    "subject": "Reminder: your event starts tomorrow",
+    "sender": "events@communityhub.org",
+    "body": "Your registered event starts tomorrow. View details at https://communityhub.org/events/launch-day or update your preferences from your profile page.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from mail.communityhub.org by mx.google.com",
+      "Reply-To": "events@communityhub.org",
+      "Return-Path": "<events@communityhub.org>"
+    },
+    "attachments": []
+  }
+]

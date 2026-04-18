@@ -1,0 +1,204 @@
+@import url("https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css");
+
+:root {
+  --pg-navy: #0f1726;
+  --pg-navy-soft: #16304c;
+  --pg-blue: #1f6ed4;
+  --pg-green: #2ea44f;
+  --pg-mint: #e8f6ee;
+  --pg-slate: #475569;
+  --pg-border: rgba(15, 23, 38, 0.12);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(46, 164, 79, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(31, 110, 212, 0.18), transparent 30%),
+    linear-gradient(180deg, #f4f8fc 0%, #eef4f8 100%);
+}
+
+.swagger-ui {
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  color: var(--pg-navy);
+}
+
+.swagger-ui .topbar {
+  background: linear-gradient(120deg, #101826 0%, #132a49 55%, #1d5d3f 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 32px rgba(16, 24, 38, 0.18);
+}
+
+.swagger-ui .topbar .wrapper {
+  max-width: 1180px;
+  padding: 14px 20px;
+}
+
+.swagger-ui .topbar .download-url-wrapper {
+  display: none;
+}
+
+.swagger-ui .topbar-wrapper a {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.swagger-ui .topbar-wrapper a::before {
+  content: "";
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background: center / cover no-repeat url("/static/logo.svg");
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+}
+
+.swagger-ui .topbar-wrapper svg {
+  display: none;
+}
+
+.swagger-ui .information-container.wrapper {
+  max-width: 1180px;
+  padding-top: 28px;
+}
+
+.swagger-ui .info {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(19, 42, 73, 0.08);
+  border-radius: 28px;
+  padding: 28px 34px;
+  box-shadow: 0 16px 44px rgba(15, 23, 38, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.swagger-ui .info .title {
+  color: var(--pg-navy);
+  font-size: 50px;
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+}
+
+.swagger-ui .info .title small {
+  background: linear-gradient(135deg, var(--pg-blue), #3a8cff);
+  border-radius: 999px;
+  color: #fff;
+  padding: 4px 12px;
+}
+
+.swagger-ui .info .title small.version-stamp {
+  background: linear-gradient(135deg, var(--pg-green), #51c76b);
+}
+
+.swagger-ui .info p,
+.swagger-ui .info li,
+.swagger-ui .info a {
+  color: var(--pg-slate);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.swagger-ui .scheme-container {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.swagger-ui .opblock-tag {
+  border: none;
+  color: var(--pg-navy);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 18px;
+  padding: 18px 10px 10px;
+}
+
+.swagger-ui .opblock {
+  border: 1px solid var(--pg-border);
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(15, 23, 38, 0.06);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.swagger-ui .opblock .opblock-summary {
+  padding: 14px 18px;
+}
+
+.swagger-ui .opblock.opblock-post {
+  background: rgba(46, 164, 79, 0.08);
+  border-color: rgba(46, 164, 79, 0.25);
+}
+
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+  background: linear-gradient(135deg, var(--pg-green), #51c76b);
+}
+
+.swagger-ui .opblock.opblock-get {
+  background: rgba(31, 110, 212, 0.08);
+  border-color: rgba(31, 110, 212, 0.22);
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+  background: linear-gradient(135deg, var(--pg-blue), #3a8cff);
+}
+
+.swagger-ui .btn.execute {
+  background: linear-gradient(135deg, var(--pg-blue), #3a8cff);
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(31, 110, 212, 0.24);
+}
+
+.swagger-ui .btn.authorize {
+  border-color: var(--pg-blue);
+  color: var(--pg-blue);
+}
+
+.swagger-ui .responses-inner h4,
+.swagger-ui .opblock-description-wrapper p,
+.swagger-ui .opblock-external-docs-wrapper p,
+.swagger-ui .opblock-title_normal p {
+  color: var(--pg-slate);
+}
+
+.swagger-ui table thead tr td,
+.swagger-ui table thead tr th {
+  color: var(--pg-navy);
+}
+
+.swagger-ui section.models {
+  border: 1px solid var(--pg-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 28px rgba(15, 23, 38, 0.06);
+}
+
+.swagger-ui .model-box,
+.swagger-ui .highlight-code {
+  background: #0d1725;
+}
+
+.swagger-ui .response-col_status,
+.swagger-ui .response-col_links,
+.swagger-ui .response-col_description {
+  vertical-align: top;
+}
+
+@media (max-width: 900px) {
+  .swagger-ui .info {
+    border-radius: 20px;
+    padding: 22px;
+  }
+
+  .swagger-ui .info .title {
+    font-size: 38px;
+  }
+
+  .swagger-ui .topbar-wrapper a {
+    font-size: 18px;
+  }
+}

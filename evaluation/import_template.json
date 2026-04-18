@@ -1,0 +1,18 @@
+[
+  {
+    "name": "safe_newsletter_example",
+    "notes": "Sanitized real email. Remove personal identifiers before importing.",
+    "expected_prediction": "Safe",
+    "expected_category": "legitimate_marketing",
+    "subject": "Example newsletter subject",
+    "sender": "news@example.com",
+    "body": "Short sanitized body text with any sensitive details removed.",
+    "headers": {
+      "Authentication-Results": "spf=pass; dkim=pass; dmarc=pass",
+      "Received": "from mail.example.com by mx.google.com",
+      "Reply-To": "news@example.com",
+      "Return-Path": "<bounce@example.com>"
+    },
+    "attachments": []
+  }
+]
