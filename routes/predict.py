@@ -8,6 +8,8 @@ import json
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
+from typing import Any
 
 try:
     from backend.core.limiter import limiter
@@ -414,7 +416,10 @@ async def predict_email(
     "/batch-predict",
     response_model=list[EmailResponse],
     summary="Analyze multiple emails in one request",
-    description="Submit up to 10 emails and receive one explainable phishing assessment per message.",
+    description=(
+        "Submit up to 10 emails in a single request and receive one explainable phishing assessment per message. "
+        "Each input item is validated separately and validation errors include the index of the failing email."
+    ),
     responses={
         400: {
             "description": "Batch exceeded supported size",
@@ -424,20 +429,49 @@ async def predict_email(
                 }
             },
         },
-        422: PREDICT_RESPONSE_EXAMPLES[422],
+        422: {
+            "description": "Validation error caused by malformed batch item data",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["body", 0, "attachments", 0, "sha256"],
+                                "msg": "String should have at least 32 characters",
+                                "type": "string_too_short"
+                            }
+                        ]
+                    }
+                }
+            },
+        },
     },
 )
 @limiter.limit("10/minute")
 async def batch_predict_emails(
     request: Request,
-    emails: list[EmailRequest] = Body(..., openapi_examples=BATCH_REQUEST_EXAMPLES),
+    emails: list[dict[str, Any]] = Body(..., openapi_examples=BATCH_REQUEST_EXAMPLES),
     db: Session = Depends(get_db),
 ):
+    if not isinstance(emails, list):
+        raise HTTPException(status_code=422, detail="Request body must be a JSON array of email objects.")
     if len(emails) > 10:
         raise HTTPException(status_code=400, detail="Batch size limited to 10 emails")
 
+    validated_emails: list[EmailRequest] = []
+    validation_errors: list[dict[str, Any]] = []
+    for index, raw_email in enumerate(emails):
+        try:
+            validated_emails.append(EmailRequest.model_validate(raw_email))
+        except ValidationError as exc:
+            for err in exc.errors():
+                err["loc"] = ["body", index] + list(err["loc"])
+                validation_errors.append(err)
+    if validation_errors:
+        raise HTTPException(status_code=422, detail=validation_errors)
+
     try:
-        normalized_emails = [_normalize_request(email) for email in emails]
+        normalized_emails = [_normalize_request(email) for email in validated_emails]
         results = await asyncio.gather(
             *[
                 detect_phishing(
@@ -456,7 +490,7 @@ async def batch_predict_emails(
 
         db_results = [
             _build_db_result(
-                emails[index].model_copy(
+                validated_emails[index].model_copy(
                     update={
                         "subject": normalized_emails[index]["subject"],
                         "sender": normalized_emails[index]["sender"],

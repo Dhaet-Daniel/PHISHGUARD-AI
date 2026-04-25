@@ -166,6 +166,35 @@ class APITestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], "Batch size limited to 10 emails")
 
+    def test_batch_predict_endpoint_returns_item_level_validation_errors(self):
+        payload = [
+            {
+                "subject": "Email subject (3-200 chars)",
+                "sender": "sender@email.com",
+                "body_text": "Plain text content (1-10000 chars)",
+                "headers": {
+                    "Authentication-Results": "spf=pass; dkim=pass",
+                    "Received": "routing info",
+                },
+                "attachments": [
+                    {
+                        "filename": "document.pdf",
+                        "content_type": "application/pdf",
+                        "size": 184320,
+                        "sha256": "hash",
+                        "is_password_protected": False,
+                    }
+                ],
+            }
+        ]
+
+        response = self.client.post("/api/v1/batch-predict", json=payload)
+
+        self.assertEqual(response.status_code, 422)
+        body = response.json()
+        self.assertIsInstance(body["detail"], list)
+        self.assertTrue(any(error["loc"] == ["body", 0, "attachments", 0, "sha256"] for error in body["detail"]))
+
     def test_feedback_endpoint_accepts_linked_feedback(self):
         prediction_payload = {
             "subject": "Your weekly GitHub activity summary",
