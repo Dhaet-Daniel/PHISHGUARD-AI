@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import UTC, datetime
+import enum
 import json
 from pathlib import Path
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, text
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -18,6 +19,27 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+class UserRole(str, enum.Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+
+role_enum = Enum(
+    UserRole,
+    values_callable=lambda enum_cls: [member.value for member in enum_cls],
+    native_enum=False,
+)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(role_enum, default=UserRole.USER, nullable=False)
 
 
 class DetectionResult(Base):
@@ -54,6 +76,8 @@ class Feedback(Base):
     detection_result_id = Column(Integer, ForeignKey("detection_results.id"), nullable=True, index=True)
     actual_prediction = Column(String)
     user_feedback = Column(Text)
+    admin_response = Column(Text, nullable=True)
+    status = Column(String, default="open")
     matched_keywords = Column(Text, default="[]")
     reason = Column(Text, default="")
     created_at = Column(DateTime(timezone=True), default=utc_now)
@@ -100,8 +124,13 @@ def _ensure_sqlite_columns() -> None:
         },
         "feedback": {
             "detection_result_id": "INTEGER",
+            "admin_response": "TEXT",
+            "status": "TEXT DEFAULT 'open'",
             "matched_keywords": "TEXT DEFAULT '[]'",
             "reason": "TEXT DEFAULT ''",
+        },
+        "users": {
+            "role": "TEXT DEFAULT 'user' NOT NULL",
         },
     }
 

@@ -4,6 +4,7 @@ from pathlib import Path
 from time import perf_counter
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import (
     get_redoc_html,
     get_swagger_ui_html,
@@ -19,10 +20,14 @@ from slowapi.util import get_remote_address
 try:
     from backend.core.limiter import limiter
     from backend.models import init_db
+    from backend.routes.admin import router as admin_router
+    from backend.routes.auth import router as auth_router
     from backend.routes.predict import router as predict_router
 except ModuleNotFoundError:
     from core.limiter import limiter
     from models import init_db
+    from routes.admin import router as admin_router
+    from routes.auth import router as auth_router
     from routes.predict import router as predict_router
 
 APP_DIR = Path(__file__).resolve().parent
@@ -53,7 +58,26 @@ app = FastAPI(
             "name": "system",
             "description": "Operational endpoints for API discovery and health checks.",
         },
+        {
+            "name": "auth",
+            "description": "Authentication endpoints for JWT login.",
+        },
+        {
+            "name": "admin",
+            "description": "Protected administrative endpoints for managing users, results, feedback, and stats.",
+        },
     ],
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -153,3 +177,5 @@ def health_check():
 
 
 app.include_router(predict_router, prefix="/api/v1")
+app.include_router(auth_router)
+app.include_router(admin_router)
