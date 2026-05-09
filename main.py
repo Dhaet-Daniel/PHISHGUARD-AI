@@ -23,12 +23,16 @@ try:
     from backend.routes.admin import router as admin_router
     from backend.routes.auth import router as auth_router
     from backend.routes.predict import router as predict_router
+    from backend.routes.settings import router as settings_router
+    from backend.routes.signup import router as signup_router
 except ModuleNotFoundError:
     from core.limiter import limiter
     from models import init_db
     from routes.admin import router as admin_router
     from routes.auth import router as auth_router
     from routes.predict import router as predict_router
+    from routes.settings import router as settings_router
+    from routes.signup import router as signup_router
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
@@ -178,4 +182,6 @@ def health_check():
 
 app.include_router(predict_router, prefix="/api/v1")
 app.include_router(auth_router)
+app.include_router(signup_router)
+app.include_router(settings_router)
 app.include_router(admin_router)

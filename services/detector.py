@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 from datetime import datetime
 from functools import lru_cache
@@ -13,14 +12,16 @@ from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
 import whois
 
+try:
+    from backend.services.feature_flags import get_flag
+except ModuleNotFoundError:
+    from services.feature_flags import get_flag
+
 logger = logging.getLogger(__name__)
 nlp = None
 classifier = None
 _nlp_load_attempted = False
 _classifier_load_attempted = False
-ENABLE_SPACY = os.getenv("PHISHGUARD_ENABLE_SPACY", "").strip().lower() in {"1", "true", "yes", "on"}
-ENABLE_TRANSFORMERS = os.getenv("PHISHGUARD_ENABLE_TRANSFORMERS", "").strip().lower() in {"1", "true", "yes", "on"}
-ENABLE_WHOIS = os.getenv("PHISHGUARD_ENABLE_WHOIS", "").strip().lower() in {"1", "true", "yes", "on"}
 
 SUSPICIOUS_KEYWORD_WEIGHTS = {
     "urgent": 0.16,
@@ -138,12 +139,13 @@ class DetectionResult(TypedDict):
 
 def _get_nlp():
     global nlp, _nlp_load_attempted
-    if _nlp_load_attempted:
-        return nlp
-    _nlp_load_attempted = True
-    if not ENABLE_SPACY:
-        logger.info("spaCy lemmatization is disabled. Set PHISHGUARD_ENABLE_SPACY=1 to enable it.")
+    if not get_flag("ENABLE_SPACY"):
         return None
+    if nlp is not None:
+        return nlp
+    if _nlp_load_attempted:
+        return None
+    _nlp_load_attempted = True
     try:
         import spacy
 
@@ -156,12 +158,13 @@ def _get_nlp():
 
 def _get_classifier():
     global classifier, _classifier_load_attempted
-    if _classifier_load_attempted:
-        return classifier
-    _classifier_load_attempted = True
-    if not ENABLE_TRANSFORMERS:
-        logger.info("Transformer phishing model is disabled. Set PHISHGUARD_ENABLE_TRANSFORMERS=1 to enable it.")
+    if not get_flag("ENABLE_TRANSFORMERS"):
         return None
+    if classifier is not None:
+        return classifier
+    if _classifier_load_attempted:
+        return None
+    _classifier_load_attempted = True
     try:
         from transformers import pipeline
 
@@ -244,9 +247,7 @@ def _is_suspicious_url(url: str) -> bool:
 
 
 @lru_cache(maxsize=256)
-def _domain_age_score(url: str) -> float:
-    if not ENABLE_WHOIS:
-        return 0.0
+def _cached_domain_age_score(url: str) -> float:
     try:
         domain = urlparse(url).netloc.split(":")[0]
         info = whois.whois(domain)
@@ -262,6 +263,12 @@ def _domain_age_score(url: str) -> float:
         return 0.0
     except Exception:
         return 0.0
+
+
+def _domain_age_score(url: str) -> float:
+    if not get_flag("ENABLE_WHOIS"):
+        return 0.0
+    return _cached_domain_age_score(url)
 
 
 def _parse_email_body(body: str) -> str:

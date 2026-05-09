@@ -26,8 +26,20 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
 
 
+class RequestStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 role_enum = Enum(
     UserRole,
+    values_callable=lambda enum_cls: [member.value for member in enum_cls],
+    native_enum=False,
+)
+
+request_status_enum = Enum(
+    RequestStatus,
     values_callable=lambda enum_cls: [member.value for member in enum_cls],
     native_enum=False,
 )
@@ -83,6 +95,18 @@ class Feedback(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     detection_result = relationship("DetectionResult", back_populates="feedback_items")
+
+
+class SignupRequest(Base):
+    __tablename__ = "signup_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    organization = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=False)
+    status = Column(request_status_enum, default=RequestStatus.PENDING, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
 
 def get_db():

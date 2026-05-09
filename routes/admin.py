@@ -11,12 +11,20 @@ from sqlalchemy.orm import Session
 try:
     from backend.auth import pwd_context
     from backend.dependencies import require_admin
-    from backend.models import DetectionResult, Feedback, User, UserRole, get_db
+    from backend.models import (
+        DetectionResult,
+        Feedback,
+        RequestStatus,
+        SignupRequest,
+        User,
+        UserRole,
+        get_db,
+    )
     import backend.schemas.email as email_schemas
 except ModuleNotFoundError:
     from auth import pwd_context
     from dependencies import require_admin
-    from models import DetectionResult, Feedback, User, UserRole, get_db
+    from models import DetectionResult, Feedback, RequestStatus, SignupRequest, User, UserRole, get_db
     import schemas.email as email_schemas
 
 router = APIRouter(
@@ -88,6 +96,17 @@ class FeedbackOut(BaseModel):
 class FeedbackUpdate(BaseModel):
     admin_response: str | None = None
     status: Literal["open", "resolved"] | None = None
+
+
+class SignupRequestOut(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    organization: str | None = None
+    status: RequestStatus
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 def _to_feedback_out(feedback: Feedback) -> FeedbackOut:
@@ -222,3 +241,49 @@ def admin_stats(db: Session = Depends(get_db)):
         "total_scans": db.query(DetectionResult).count(),
         "open_feedback": db.query(Feedback).filter(Feedback.status == "open").count(),
     }
+
+
+@router.get("/signup-requests", response_model=list[SignupRequestOut])
+def list_signup_requests(
+    status: RequestStatus | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(SignupRequest)
+    if status is not None:
+        query = query.filter(SignupRequest.status == status)
+    return query.order_by(SignupRequest.created_at.desc(), SignupRequest.id.desc()).all()
+
+
+@router.put("/signup-requests/{request_id}/approve")
+def approve_request(request_id: int, db: Session = Depends(get_db)):
+    signup_request = db.get(SignupRequest, request_id)
+    if signup_request is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if signup_request.status != RequestStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request is not pending")
+    if db.query(User).filter(User.email == signup_request.email).first():
+        raise HTTPException(status_code=400, detail="A user with this email already exists.")
+
+    new_user = User(
+        email=signup_request.email,
+        hashed_password=signup_request.hashed_password,
+        role=UserRole.USER,
+    )
+    db.add(new_user)
+    signup_request.status = RequestStatus.APPROVED
+    db.commit()
+    db.refresh(signup_request)
+    return {"message": f"User {new_user.email} approved and created."}
+
+
+@router.put("/signup-requests/{request_id}/reject")
+def reject_request(request_id: int, db: Session = Depends(get_db)):
+    signup_request = db.get(SignupRequest, request_id)
+    if signup_request is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if signup_request.status != RequestStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request is not pending")
+
+    signup_request.status = RequestStatus.REJECTED
+    db.commit()
+    return {"message": "Request rejected."}
