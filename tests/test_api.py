@@ -14,7 +14,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.main import app
-from backend.models import Base, engine as app_engine, get_db
+from backend.auth import pwd_context
+from backend.models import Base, User, UserRole, engine as app_engine, get_db
 
 
 class APITestCase(unittest.TestCase):
@@ -38,6 +39,35 @@ class APITestCase(unittest.TestCase):
 
         app.dependency_overrides[get_db] = override_get_db
         self.client = TestClient(app)
+
+        self.user_email = "user@phishguard.ai"
+        self.user_password = "user123"
+        self._create_user(self.user_email, self.user_password)
+        self.user_token = self._login(self.user_email, self.user_password)
+        self.auth_headers = {"Authorization": f"Bearer {self.user_token}"}
+
+    def _create_user(self, email: str, password: str, role: str = "user"):
+        db = self.TestingSessionLocal()
+        try:
+            user = User(
+                email=email,
+                hashed_password=pwd_context.hash(password),
+                role=UserRole(role),
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            return user
+        finally:
+            db.close()
+
+    def _login(self, email: str, password: str) -> str:
+        response = self.client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": password},
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.json()["access_token"]
 
     def tearDown(self):
         self.client.close()
@@ -75,7 +105,7 @@ class APITestCase(unittest.TestCase):
             "attachments": [],
         }
 
-        response = self.client.post("/api/v1/predict", json=payload)
+        response = self.client.post("/api/v1/predict", json=payload, headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -95,7 +125,7 @@ class APITestCase(unittest.TestCase):
             "attachments": [],
         }
 
-        response = self.client.post("/api/v1/predict", json=payload)
+        response = self.client.post("/api/v1/predict", json=payload, headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 422)
 
@@ -138,7 +168,7 @@ class APITestCase(unittest.TestCase):
             },
         ]
 
-        response = self.client.post("/api/v1/batch-predict", json=payload)
+        response = self.client.post("/api/v1/batch-predict", json=payload, headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         results = response.json()
@@ -161,7 +191,7 @@ class APITestCase(unittest.TestCase):
             "attachments": [],
         }
 
-        response = self.client.post("/api/v1/batch-predict", json=[email] * 11)
+        response = self.client.post("/api/v1/batch-predict", json=[email] * 11, headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], "Batch size limited to 10 emails")
@@ -188,7 +218,7 @@ class APITestCase(unittest.TestCase):
             }
         ]
 
-        response = self.client.post("/api/v1/batch-predict", json=payload)
+        response = self.client.post("/api/v1/batch-predict", json=payload, headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 422)
         body = response.json()
@@ -213,7 +243,7 @@ class APITestCase(unittest.TestCase):
             "attachments": [],
         }
 
-        predict_response = self.client.post("/api/v1/predict", json=prediction_payload)
+        predict_response = self.client.post("/api/v1/predict", json=prediction_payload, headers=self.auth_headers)
         record_id = predict_response.json()["record_id"]
 
         feedback_payload = {
@@ -271,17 +301,17 @@ class APITestCase(unittest.TestCase):
             "attachments": [],
         }
 
-        self.client.post("/api/v1/predict", json=first_payload)
-        self.client.post("/api/v1/predict", json=second_payload)
+        self.client.post("/api/v1/predict", json=first_payload, headers=self.auth_headers)
+        self.client.post("/api/v1/predict", json=second_payload, headers=self.auth_headers)
 
-        response = self.client.get("/api/v1/results/recent?limit=2")
+        response = self.client.get("/api/v1/results/recent?limit=2", headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["count"], 2)
         self.assertEqual(len(body["results"]), 2)
         self.assertIn("record_id", body["results"][0])
-        self.assertIn("created_at", body["results"][0])
+        self.assertIn("timestamp", body["results"][0])
 
     def test_result_detail_endpoint_returns_record_and_feedback(self):
         prediction_payload = {
@@ -301,7 +331,7 @@ class APITestCase(unittest.TestCase):
             "attachments": [],
         }
 
-        predict_response = self.client.post("/api/v1/predict", json=prediction_payload)
+        predict_response = self.client.post("/api/v1/predict", json=prediction_payload, headers=self.auth_headers)
         record_id = predict_response.json()["record_id"]
 
         feedback_payload = {
@@ -313,7 +343,7 @@ class APITestCase(unittest.TestCase):
         }
         self.client.post("/api/v1/feedback", json=feedback_payload)
 
-        response = self.client.get(f"/api/v1/results/{record_id}")
+        response = self.client.get(f"/api/v1/results/{record_id}", headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -325,7 +355,7 @@ class APITestCase(unittest.TestCase):
         self.assertEqual(body["feedback"][0]["detection_result_id"], record_id)
 
     def test_result_detail_endpoint_returns_404_for_missing_record(self):
-        response = self.client.get("/api/v1/results/999999")
+        response = self.client.get("/api/v1/results/999999", headers=self.auth_headers)
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["detail"], "Analysis record not found")

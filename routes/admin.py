@@ -16,6 +16,7 @@ try:
         Feedback,
         RequestStatus,
         SignupRequest,
+        TrustedDomain,
         User,
         UserRole,
         get_db,
@@ -24,7 +25,7 @@ try:
 except ModuleNotFoundError:
     from auth import pwd_context
     from dependencies import require_admin
-    from models import DetectionResult, Feedback, RequestStatus, SignupRequest, User, UserRole, get_db
+    from models import DetectionResult, Feedback, RequestStatus, SignupRequest, TrustedDomain, User, UserRole, get_db
     import schemas.email as email_schemas
 
 router = APIRouter(
@@ -107,6 +108,21 @@ class SignupRequestOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DomainCreate(BaseModel):
+    domain: str
+
+
+class DomainOut(BaseModel):
+    id: int
+    domain: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BulkApprove(BaseModel):
+    request_ids: list[int]
 
 
 def _to_feedback_out(feedback: Feedback) -> FeedbackOut:
@@ -287,3 +303,49 @@ def reject_request(request_id: int, db: Session = Depends(get_db)):
     signup_request.status = RequestStatus.REJECTED
     db.commit()
     return {"message": "Request rejected."}
+
+
+@router.get("/trusted-domains", response_model=list[DomainOut])
+def list_trusted_domains(db: Session = Depends(get_db)):
+    return db.query(TrustedDomain).order_by(TrustedDomain.domain.asc()).all()
+
+
+@router.post("/trusted-domains", response_model=DomainOut, status_code=status.HTTP_201_CREATED)
+def add_trusted_domain(data: DomainCreate, db: Session = Depends(get_db)):
+    domain = data.domain.lower().strip()
+    if db.query(TrustedDomain).filter(TrustedDomain.domain == domain).first():
+        raise HTTPException(status_code=400, detail="Domain already trusted")
+    new_domain = TrustedDomain(domain=domain)
+    db.add(new_domain)
+    db.commit()
+    db.refresh(new_domain)
+    return new_domain
+
+
+@router.delete("/trusted-domains/{domain_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_trusted_domain(domain_id: int, db: Session = Depends(get_db)):
+    domain = db.query(TrustedDomain).get(domain_id)
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    db.delete(domain)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/signup-requests/bulk-approve")
+def bulk_approve_requests(data: BulkApprove, db: Session = Depends(get_db)):
+    approved_count = 0
+    for req_id in data.request_ids:
+        signup_req = db.query(SignupRequest).get(req_id)
+        if not signup_req or signup_req.status != RequestStatus.PENDING:
+            continue
+        new_user = User(
+            email=signup_req.email,
+            hashed_password=signup_req.hashed_password,
+            role=UserRole.USER
+        )
+        db.add(new_user)
+        signup_req.status = RequestStatus.APPROVED
+        approved_count += 1
+    db.commit()
+    return {"message": f"{approved_count} request(s) approved."}

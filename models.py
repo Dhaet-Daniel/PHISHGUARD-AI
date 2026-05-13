@@ -30,6 +30,7 @@ class RequestStatus(str, enum.Enum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+    AUTO_APPROVED = "auto_approved"
 
 
 role_enum = Enum(
@@ -76,6 +77,8 @@ class DetectionResult(Base):
     headers = Column(Text, default="{}")
     attachment_metadata = Column(Text, default="[]")
     created_at = Column(DateTime(timezone=True), default=utc_now)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user = relationship("User", backref="scans")
 
     feedback_items = relationship("Feedback", back_populates="detection_result")
 
@@ -107,6 +110,13 @@ class SignupRequest(Base):
     hashed_password = Column(String, nullable=False)
     status = Column(request_status_enum, default=RequestStatus.PENDING, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utc_now)
+
+
+class TrustedDomain(Base):
+    __tablename__ = "trusted_domains"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, unique=True, nullable=False, index=True)
 
 
 def get_db():
@@ -145,6 +155,7 @@ def _ensure_sqlite_columns() -> None:
             "analysis_breakdown": "TEXT DEFAULT '{}'",
             "headers": "TEXT DEFAULT '{}'",
             "attachment_metadata": "TEXT DEFAULT '[]'",
+            "user_id": "INTEGER",
         },
         "feedback": {
             "detection_result_id": "INTEGER",

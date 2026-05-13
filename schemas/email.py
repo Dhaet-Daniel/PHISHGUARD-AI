@@ -292,7 +292,7 @@ class StoredEmailResult(BaseModel):
     summary: str
     reason: str
     matched_keywords: list[str] = Field(default_factory=list)
-    created_at: datetime
+    timestamp: datetime
 
 
 class StoredEmailResultList(BaseModel):

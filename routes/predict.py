@@ -14,7 +14,7 @@ from typing import Any
 try:
     from backend.core.limiter import limiter
     from backend.models import DetectionResult as DBResult
-    from backend.models import Feedback, dumps_json, get_db
+    from backend.models import Feedback, User, dumps_json, get_db
     from backend.schemas.email import (
         EmailRequest,
         EmailResponse,
@@ -25,10 +25,11 @@ try:
         StoredFeedbackItem,
     )
     from backend.services.detector import detect_phishing
+    from backend.dependencies import get_current_user
 except ModuleNotFoundError:
     from core.limiter import limiter
     from models import DetectionResult as DBResult
-    from models import Feedback, dumps_json, get_db
+    from models import Feedback, User, dumps_json, get_db
     from schemas.email import (
         EmailRequest,
         EmailResponse,
@@ -39,6 +40,7 @@ except ModuleNotFoundError:
         StoredFeedbackItem,
     )
     from services.detector import detect_phishing
+    from dependencies import get_current_user
 
 router = APIRouter(tags=["phishing-detection"])
 
@@ -148,7 +150,7 @@ def _build_stored_result(record: DBResult) -> StoredEmailResult:
         summary=record.summary,
         reason=record.reason,
         matched_keywords=json.loads(record.matched_keywords or "[]"),
-        created_at=record.created_at,
+        timestamp=record.created_at,
     )
 
 
@@ -319,21 +321,31 @@ PREDICT_RESPONSE_EXAMPLES = {
 }
 
 
+def _get_current_user_record(db: Session, current_user: dict) -> User:
+    user = db.query(User).filter(User.email == current_user["sub"]).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 @router.get(
     "/results/recent",
     response_model=StoredEmailResultList,
-    summary="View recently stored analysis results",
-    description="Lightweight admin-style endpoint for inspecting the most recent stored single and batch prediction records.",
+    summary="View your recent analysis results",
+    description="Return the authenticated user's most recent stored predictions.",
 )
 @limiter.limit("30/minute")
 async def recent_results(
     request: Request,
     limit: int = 10,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     safe_limit = max(1, min(limit, 50))
+    user = _get_current_user_record(db, current_user)
     records = (
         db.query(DBResult)
+        .filter(DBResult.user_id == user.id)
         .order_by(desc(DBResult.created_at), desc(DBResult.id))
         .limit(safe_limit)
         .all()
@@ -355,9 +367,13 @@ async def result_detail(
     request: Request,
     record_id: int,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
+    user = _get_current_user_record(db, current_user)
     record = db.query(DBResult).filter(DBResult.id == record_id).first()
     if record is None:
+        raise HTTPException(status_code=404, detail="Analysis record not found")
+    if current_user.get("role") != "admin" and record.user_id != user.id:
         raise HTTPException(status_code=404, detail="Analysis record not found")
     return _build_stored_result_detail(record)
 
@@ -377,8 +393,10 @@ async def predict_email(
     request: Request,
     email: EmailRequest = Body(..., openapi_examples=PREDICT_REQUEST_EXAMPLES),
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     try:
+        user = _get_current_user_record(db, current_user)
         normalized = _normalize_request(email)
         result = await detect_phishing(
             normalized["subject"],
@@ -400,6 +418,7 @@ async def predict_email(
             }
         )
         db_result = _build_db_result(db_email, result)
+        db_result.user_id = user.id
         db.add(db_result)
         db.commit()
         db.refresh(db_result)
@@ -452,6 +471,7 @@ async def batch_predict_emails(
     request: Request,
     emails: list[dict[str, Any]] = Body(..., openapi_examples=BATCH_REQUEST_EXAMPLES),
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     if not isinstance(emails, list):
         raise HTTPException(status_code=422, detail="Request body must be a JSON array of email objects.")
@@ -471,6 +491,7 @@ async def batch_predict_emails(
         raise HTTPException(status_code=422, detail=validation_errors)
 
     try:
+        user = _get_current_user_record(db, current_user)
         normalized_emails = [_normalize_request(email) for email in validated_emails]
         results = await asyncio.gather(
             *[
@@ -502,6 +523,8 @@ async def batch_predict_emails(
             )
             for index, result in enumerate(results)
         ]
+        for db_result in db_results:
+            db_result.user_id = user.id
         db.add_all(db_results)
         db.commit()
         for db_result in db_results:
