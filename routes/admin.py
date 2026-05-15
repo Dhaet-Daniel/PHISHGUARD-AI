@@ -70,6 +70,20 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AdminResultOut(BaseModel):
+    record_id: int
+    subject: str | None = None
+    sender: str | None = None
+    prediction: str
+    category: str
+    confidence: float
+    score: float
+    risk_level: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -192,7 +206,21 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/results", response_model=list[email_schemas.EmailResponse])
+def _to_admin_result(record: DetectionResult) -> AdminResultOut:
+    return AdminResultOut(
+        record_id=record.id,
+        subject=record.subject,
+        sender=record.sender,
+        prediction=record.prediction,
+        category=record.category,
+        confidence=record.confidence,
+        score=record.score,
+        risk_level=record.risk_level,
+        created_at=record.created_at,
+    )
+
+
+@router.get("/results", response_model=list[AdminResultOut])
 def list_results(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
     records = (
         db.query(DetectionResult)
@@ -201,7 +229,7 @@ def list_results(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
         .limit(max(1, min(limit, 100)))
         .all()
     )
-    return [_to_email_response(record) for record in records]
+    return [_to_admin_result(record) for record in records]
 
 
 @router.delete("/results/{result_id}", status_code=status.HTTP_204_NO_CONTENT)
