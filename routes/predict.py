@@ -407,6 +407,8 @@ async def predict_email(
             normalized["links"],
             normalized["body_text"],
             normalized["body_html"],
+            user.id,
+            db,
         )
 
         db_email = email.model_copy(
@@ -504,6 +506,8 @@ async def batch_predict_emails(
                     normalized["links"],
                     normalized["body_text"],
                     normalized["body_html"],
+                    user.id,
+                    db,
                 )
                 for normalized in normalized_emails
             ]

@@ -6,7 +6,7 @@ import enum
 import json
 from pathlib import Path
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text, create_engine, text
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text, Boolean, create_engine, text
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -119,6 +119,25 @@ class TrustedDomain(Base):
     domain = Column(String, unique=True, nullable=False, index=True)
 
 
+class UserFeature(Base):
+    __tablename__ = "user_features"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    feature_name = Column(String, nullable=False)
+    enabled = Column(Boolean, default=True)
+
+
+class FeatureRequest(Base):
+    __tablename__ = "feature_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_email = Column(String, nullable=False, index=True)
+    feature_name = Column(String, nullable=False, index=True)
+    status = Column(String, default="pending", nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -166,6 +185,12 @@ def _ensure_sqlite_columns() -> None:
         },
         "users": {
             "role": "TEXT DEFAULT 'user' NOT NULL",
+        },
+        "user_features": {
+            "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "user_id": "INTEGER NOT NULL",
+            "feature_name": "TEXT NOT NULL",
+            "enabled": "INTEGER DEFAULT 1",
         },
     }
 

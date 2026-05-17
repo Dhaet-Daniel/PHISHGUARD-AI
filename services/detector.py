@@ -13,9 +13,9 @@ from bs4 import BeautifulSoup
 import whois
 
 try:
-    from backend.services.feature_flags import get_flag
+    from backend.services.feature_flags import get_flag, get_effective_flag
 except ModuleNotFoundError:
-    from services.feature_flags import get_flag
+    from services.feature_flags import get_flag, get_effective_flag
 
 logger = logging.getLogger(__name__)
 nlp = None
@@ -137,9 +137,9 @@ class DetectionResult(TypedDict):
     analysis_breakdown: dict[str, float]
 
 
-def _get_nlp():
+def _get_nlp(user_id: int | None = None, db=None):
     global nlp, _nlp_load_attempted
-    if not get_flag("ENABLE_SPACY"):
+    if not get_effective_flag("ENABLE_SPACY", user_id, db):
         return None
     if nlp is not None:
         return nlp
@@ -156,9 +156,9 @@ def _get_nlp():
     return nlp
 
 
-def _get_classifier():
+def _get_classifier(user_id: int | None = None, db=None):
     global classifier, _classifier_load_attempted
-    if not get_flag("ENABLE_TRANSFORMERS"):
+    if not get_effective_flag("ENABLE_TRANSFORMERS", user_id, db):
         return None
     if classifier is not None:
         return classifier
@@ -179,8 +179,8 @@ def _normalize_text(*parts: str) -> str:
     return " ".join(part.strip() for part in parts if part).lower()
 
 
-def _preprocess_text(text: str) -> str:
-    current_nlp = _get_nlp()
+def _preprocess_text(text: str, user_id: int | None = None, db=None) -> str:
+    current_nlp = _get_nlp(user_id, db)
     if current_nlp:
         doc = current_nlp(text.lower())
         return " ".join(token.lemma_ for token in doc if not token.is_stop and token.is_alpha)
@@ -265,8 +265,8 @@ def _cached_domain_age_score(url: str) -> float:
         return 0.0
 
 
-def _domain_age_score(url: str) -> float:
-    if not get_flag("ENABLE_WHOIS"):
+def _domain_age_score(url: str, user_id: int | None = None, db=None) -> float:
+    if not get_effective_flag("ENABLE_WHOIS", user_id, db):
         return 0.0
     return _cached_domain_age_score(url)
 
@@ -303,6 +303,8 @@ def _url_analysis(
     body: str,
     explicit_links: list[dict[str, Any]] | None = None,
     body_html: str | None = None,
+    user_id: int | None = None,
+    db=None,
 ) -> tuple[float, list[str], list[str], list[str], list[str]]:
     urls = _extract_urls(body)
     html_links = _extract_html_links(body_html or body)
@@ -332,7 +334,10 @@ def _url_analysis(
         if _is_suspicious_url(url):
             suspicious_urls.append(url)
             score += 0.14
-        age_score = _domain_age_score(url)
+        age_score = _domain_age_score(url, user_id, db)
+        if age_score > 0:
+            young_domains.append(url)
+            score += age_score
         if age_score > 0:
             young_domains.append(url)
             score += age_score
@@ -363,8 +368,8 @@ def _url_analysis(
     return min(score, 0.45), suspicious_urls, young_domains, issues, trust_signals
 
 
-def _ml_phishing_score(text: str) -> float:
-    current_classifier = _get_classifier()
+def _ml_phishing_score(text: str, user_id: int | None = None, db=None) -> float:
+    current_classifier = _get_classifier(user_id, db)
     if current_classifier is None:
         return 0.0
     try:
@@ -671,11 +676,13 @@ async def detect_phishing(
     links: list[dict[str, Any]] | None = None,
     body_text: str | None = None,
     body_html: str | None = None,
+    user_id: int | None = None,
+    db=None,
 ) -> DetectionResult:
     parsed_body = _parse_email_body(body_html or body)
     effective_text = body_text or parsed_body or body
     combined_text = _normalize_text(subject, sender, effective_text, parsed_body)
-    processed_text = _preprocess_text(combined_text)
+    processed_text = _preprocess_text(combined_text, user_id, db)
     sender_lower = sender.strip().lower()
 
     (
@@ -687,8 +694,8 @@ async def detect_phishing(
     ) = await asyncio.gather(
         asyncio.to_thread(_keyword_analysis, processed_text),
         asyncio.to_thread(_sender_analysis, sender_lower),
-        asyncio.to_thread(_url_analysis, sender, body, links, body_html),
-        asyncio.to_thread(_ml_phishing_score, processed_text),
+        asyncio.to_thread(_url_analysis, sender, body, links, body_html, user_id, db),
+        asyncio.to_thread(_ml_phishing_score, processed_text, user_id, db),
         asyncio.to_thread(_urgency_analysis, combined_text),
     )
 

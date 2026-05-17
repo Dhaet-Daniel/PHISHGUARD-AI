@@ -14,10 +14,12 @@ try:
     from backend.models import (
         DetectionResult,
         Feedback,
+        FeatureRequest,
         RequestStatus,
         SignupRequest,
         TrustedDomain,
         User,
+        UserFeature,
         UserRole,
         get_db,
     )
@@ -25,7 +27,7 @@ try:
 except ModuleNotFoundError:
     from auth import pwd_context
     from dependencies import require_admin
-    from models import DetectionResult, Feedback, RequestStatus, SignupRequest, TrustedDomain, User, UserRole, get_db
+    from models import DetectionResult, Feedback, FeatureRequest, RequestStatus, SignupRequest, TrustedDomain, User, UserFeature, UserRole, get_db
     import schemas.email as email_schemas
 
 router = APIRouter(
@@ -131,6 +133,16 @@ class DomainCreate(BaseModel):
 class DomainOut(BaseModel):
     id: int
     domain: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FeatureRequestOut(BaseModel):
+    id: int
+    user_email: str
+    feature_name: str
+    status: str
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -338,6 +350,58 @@ def list_trusted_domains(db: Session = Depends(get_db)):
     return db.query(TrustedDomain).order_by(TrustedDomain.domain.asc()).all()
 
 
+@router.get("/feature-requests", response_model=list[FeatureRequestOut])
+def list_feature_requests(db: Session = Depends(get_db)):
+    return (
+        db.query(FeatureRequest)
+        .order_by(FeatureRequest.created_at.desc(), FeatureRequest.id.desc())
+        .all()
+    )
+
+
+@router.put("/feature-requests/{request_id}/resolve")
+def resolve_feature_request(request_id: int, db: Session = Depends(get_db)):
+    feature_request = db.get(FeatureRequest, request_id)
+    if feature_request is None or feature_request.status != "pending":
+        raise HTTPException(status_code=404, detail="Request not found or not pending")
+
+    user = db.query(User).filter(User.email == feature_request.user_email).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    existing = db.query(UserFeature).filter_by(
+        user_id=user.id,
+        feature_name=feature_request.feature_name,
+    ).first()
+    if existing:
+        existing.enabled = True
+    else:
+        db.add(
+            UserFeature(
+                user_id=user.id,
+                feature_name=feature_request.feature_name,
+                enabled=True,
+            )
+        )
+
+    feature_request.status = "approved"
+    db.commit()
+    return {
+        "message": f"Feature {feature_request.feature_name} enabled for {feature_request.user_email}"
+    }
+
+
+@router.put("/feature-requests/{request_id}/dismiss")
+def dismiss_feature_request(request_id: int, db: Session = Depends(get_db)):
+    feature_request = db.get(FeatureRequest, request_id)
+    if feature_request is None or feature_request.status != "pending":
+        raise HTTPException(status_code=404, detail="Request not found or not pending")
+
+    feature_request.status = "dismissed"
+    db.commit()
+    return {"message": "Request dismissed"}
+
+
 @router.post("/trusted-domains", response_model=DomainOut, status_code=status.HTTP_201_CREATED)
 def add_trusted_domain(data: DomainCreate, db: Session = Depends(get_db)):
     domain = data.domain.lower().strip()
@@ -377,3 +441,66 @@ def bulk_approve_requests(data: BulkApprove, db: Session = Depends(get_db)):
         approved_count += 1
     db.commit()
     return {"message": f"{approved_count} request(s) approved."}
+
+
+# Per-user feature flag management
+
+
+class AssignUserFeatureSchema(BaseModel):
+    user_email: str
+    feature_name: str
+
+
+class UserFeatureOut(BaseModel):
+    user_email: str
+    feature_name: str
+    enabled: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+@router.get("/user-features", response_model=list[UserFeatureOut])
+def list_user_features(db: Session = Depends(get_db)):
+    """List all per-user feature overrides."""
+    overrides = db.query(UserFeature).all()
+    result = []
+    for uf in overrides:
+        user = db.query(User).get(uf.user_id)
+        if user:
+            result.append(UserFeatureOut(
+                user_email=user.email,
+                feature_name=uf.feature_name,
+                enabled=uf.enabled
+            ))
+    return result
+
+
+@router.post("/user-features")
+def assign_user_feature(data: AssignUserFeatureSchema, db: Session = Depends(get_db)):
+    """Assign (enable) a feature for a specific user."""
+    user = db.query(User).filter(User.email == data.user_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    existing = db.query(UserFeature).filter_by(
+        user_id=user.id, feature_name=data.feature_name
+    ).first()
+    if existing:
+        existing.enabled = True
+    else:
+        db.add(UserFeature(user_id=user.id, feature_name=data.feature_name, enabled=True))
+    
+    db.commit()
+    return {"message": f"{data.feature_name} enabled for {data.user_email}"}
+
+
+@router.delete("/user-features")
+def remove_user_feature(user_email: str, feature_name: str, db: Session = Depends(get_db)):
+    """Remove (disable) a feature for a specific user."""
+    user = db.query(User).filter(User.email == user_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db.query(UserFeature).filter_by(user_id=user.id, feature_name=feature_name).delete()
+    db.commit()
+    return {"message": f"{feature_name} disabled for {user_email}"}

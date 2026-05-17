@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from sqlalchemy.orm import Session
+
 FLAGS_FILE = Path(__file__).resolve().parent.parent / "feature_flags.json"
 
 DEFAULT_FLAGS = {
@@ -46,3 +48,24 @@ def set_flag(name: str, value: bool) -> None:
     flags = load_flags()
     flags[name] = bool(value)
     save_flags(flags)
+
+
+def get_effective_flag(feature_name: str, user_id: int | None = None, db: Session | None = None) -> bool:
+    """
+    Return the effective feature flag for a given user.
+    1. Check UserFeature table for a per-user override.
+    2. Fall back to the global flag in feature_flags.json.
+    """
+    if user_id is not None and db is not None:
+        try:
+            from models import UserFeature
+        except ModuleNotFoundError:
+            from backend.models import UserFeature
+
+        override = db.query(UserFeature).filter(
+            UserFeature.user_id == user_id,
+            UserFeature.feature_name == feature_name
+        ).first()
+        if override is not None:
+            return bool(override.enabled)
+    return get_flag(feature_name)

@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from backend.main import app
 from backend.auth import pwd_context
-from backend.models import Base, User, UserRole, engine as app_engine, get_db
+from backend.models import Base, FeatureRequest, User, UserRole, engine as app_engine, get_db
 
 
 class APITestCase(unittest.TestCase):
@@ -359,6 +359,50 @@ class APITestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["detail"], "Analysis record not found")
+
+    def test_feature_request_endpoint_creates_pending_request(self):
+        response = self.client.post(
+            "/api/v1/settings/feature-request",
+            json={"feature_name": "ENABLE_TRANSFORMERS"},
+            headers=self.auth_headers,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.json()["message"],
+            "Request submitted. An admin will review it shortly.",
+        )
+
+        db = self.TestingSessionLocal()
+        try:
+            feature_request = db.query(FeatureRequest).filter(
+                FeatureRequest.user_email == self.user_email,
+                FeatureRequest.feature_name == "ENABLE_TRANSFORMERS",
+            ).first()
+            self.assertIsNotNone(feature_request)
+            self.assertEqual(feature_request.status, "pending")
+        finally:
+            db.close()
+
+    def test_feature_request_endpoint_rejects_duplicate_pending_request(self):
+        first_response = self.client.post(
+            "/api/v1/settings/feature-request",
+            json={"feature_name": "ENABLE_TRANSFORMERS"},
+            headers=self.auth_headers,
+        )
+        self.assertEqual(first_response.status_code, 201)
+
+        second_response = self.client.post(
+            "/api/v1/settings/feature-request",
+            json={"feature_name": "ENABLE_TRANSFORMERS"},
+            headers=self.auth_headers,
+        )
+
+        self.assertEqual(second_response.status_code, 400)
+        self.assertEqual(
+            second_response.json()["detail"],
+            "You already have a pending request for this feature.",
+        )
 
 
 if __name__ == "__main__":
